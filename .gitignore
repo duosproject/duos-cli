@@ -79,3 +79,4 @@ venv.bak/
 *.pdf
 DUOS_Validation.png
 DUOSValidationERD.png
+*.csv
