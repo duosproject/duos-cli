@@ -1,17 +1,11 @@
-from sqlalchemy import (
-    create_engine,
-    Table,
-    Column,
-    Integer,
-    String,
-    DateTime,
-    MetaData,
-    ForeignKey,
-)
+from sqlalchemy import Table, Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
 
 
-def make_all_the_tables(metadata, engine):
+def build_schema_from_metadata(metadata, engine):
     """wrapper for database definitions. consider it config."""
+
+    Base = declarative_base()
 
     Table(
         "article",
@@ -27,7 +21,7 @@ def make_all_the_tables(metadata, engine):
         metadata,
         Column("author_id", Integer, primary_key=True),
         Column("author_name", String, nullable=False),
-        Column("email_address", String, nullable=False),
+        Column("email_address", String, nullable=True),
     )
 
     Table(
@@ -67,4 +61,5 @@ def make_all_the_tables(metadata, engine):
         Column("action_date", DateTime),
     )
 
-    metadata.create_all()
+    return metadata.create_all()
+

@@ -16,9 +16,9 @@ import os
 import click
 from click import echo
 
-from make_all_the_tables import make_all_the_tables
-from parsers import normalize, iter_parse_csv, parse_artist, upload_csv
-from CONSTANTS import RECORD_HANDLING_MAP
+from db_schema import build_schema_from_metadata
+from plumbing import iter_parse_csv
+from CONSTANTS import INPUT_VARIANT_COLUMN_MAP, INPUT_VARIANT_TRANSACTION_MAP
 
 
 @click.group()
@@ -57,13 +57,13 @@ def create(ctx, from_scratch):
         ctx.obj["metadata"].drop_all(ctx.obj["engine"])
         echo("🙌  done!")
 
-    if len(ctx.obj["metadata"].tables) > 0:
-        echo(f"🚫  {len(ctx.obj['metadata'].tables)} already exist.")
+    if len(ctx.obj["metadata"].tables):
+        echo(f"🚫  {len(ctx.obj['metadata'].tables)} tables already exist.")
         echo("consider destroying first or using '--from-scratch'")
         return
 
     echo("✨  creating tables...")
-    make_all_the_tables(ctx.obj["metadata"], ctx.obj["engine"])
+    build_schema_from_metadata(ctx.obj["metadata"], ctx.obj["engine"])
     echo("🙌  done!")
     return
 
@@ -77,7 +77,8 @@ def destroy(ctx):
 
 
 @duosload.command(help="insert local csv into the database")
-def upload():
+@click.pass_context
+def upload(ctx):
     # extract absolute path of wherever we are execxuting
     path = os.path.dirname(os.path.abspath(__file__))
     csv_names = {fname.split(".")[0] for fname in os.listdir(path) if ".csv" in fname}
@@ -85,8 +86,12 @@ def upload():
     echo(f"CSVs discovered: {csv_names}")
 
     for name in csv_names:
-        if name in RECORD_HANDLING_MAP:
-            parse_artist(normalize(iter_parse_csv(name, path), name))
+        if name in INPUT_VARIANT_COLUMN_MAP:
+            INPUT_VARIANT_TRANSACTION_MAP[name](
+                iter_parse_csv(name, path, INPUT_VARIANT_COLUMN_MAP[name]),
+                ctx.obj["engine"],
+                ctx.obj["metadata"],
+            )
 
 
 @duosload.command(help="list basic info about duos db")
