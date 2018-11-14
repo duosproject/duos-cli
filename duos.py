@@ -67,15 +67,18 @@ def destroy(ctx):
     echo("🙌  destroyed!")
 
 
-@duosload.command(help="insert local csv into the database.")
+@duosload.command(help="commit records from local csv to the database.")
 @click.pass_context
 def upload(ctx):
     # extract absolute path of wherever we are execxuting
     path = os.path.dirname(os.path.abspath(__file__))
     csv_names = {fname.split(".")[0] for fname in os.listdir(path) if ".csv" in fname}
-
-    echo(f"CSVs discovered: {csv_names}")
-
+    if len(csv_names) == 0:
+        echo(
+            f"🙁  no csvs to parse found. is the csv you wanted to process in this folder?"
+        )
+    echo(f"🔍  CSVs discovered: {csv_names}...")
+    echo("💬  Working...")
     for name in csv_names:
         if name in INPUT_VARIANT_COLUMN_MAP:
             INPUT_VARIANT_TRANSACTION_MAP[name](
@@ -83,12 +86,19 @@ def upload(ctx):
                 ctx.obj["engine"],
                 ctx.obj["metadata"],
             )
+        else:
+            echo(
+                f"❗  {name}.csv is not an accepted filename. see CONSTANTS.py for valid names.\n   doing nothing with {name}.csv..."
+            )
+    echo("🙌  done!")
 
 
 @duosload.command(help="list basic info about duos db")
 @click.pass_context
 def info(ctx):
-    echo(f"💻  There are {len(ctx.obj['metadata'].tables)} tables in the DUOS database.")
+    echo(f"💻  There are {len(ctx.obj['metadata'].tables)} tables in the DUOS database:")
+    for table in ctx.obj["metadata"].tables:
+        echo(f"\t{table}")
 
 
 if __name__ == "__main__":

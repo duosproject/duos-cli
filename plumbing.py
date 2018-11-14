@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import re
+from click import echo
 
 
 def iter_parse_csv(name, path, column_name_converter_dict):
@@ -50,9 +51,10 @@ def iter_norm_article(article_iterable):
 
 
 def insert_article_dependent_tables(inserts_iterable, engine, metadata):
+    conn = engine.connect()
+    record_count = 0
     for article_row, author_rows in iter_norm_article(inserts_iterable):
-        conn = engine.connect()
-
+        record_count += 1
         # only one article to insert; grab ID
         inserted_article_id, = conn.execute(
             metadata.tables["article"]
@@ -76,7 +78,9 @@ def insert_article_dependent_tables(inserts_iterable, engine, metadata):
         ]
 
         conn.execute(metadata.tables["writes"].insert().values(writes_to_insert))
-        conn.close()
+        echo("   ..." + "." * record_count)
+    echo(f"ℹ️  {record_count} records processed.")
+    conn.close()
 
 
 def iter_norm_reference(dataset_iterable):
