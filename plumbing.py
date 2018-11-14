@@ -49,23 +49,34 @@ def iter_norm_article(article_iterable):
         ]
 
 
-def insert_article_dependent_tables(insert_rows_iterable, engine, metadata):
-    for article_rows, author_rows in iter_norm_article(insert_rows_iterable):
+def insert_article_dependent_tables(inserts_iterable, engine, metadata):
+    for article_row, author_rows in iter_norm_article(inserts_iterable):
         conn = engine.connect()
 
-        author_ids = conn.execute(
+        # only one article to insert; grab ID
+        inserted_article_id, = conn.execute(
+            metadata.tables["article"]
+            .insert()
+            .values(article_row)
+            # .return_defaults()
+            .returning(metadata.tables["article"].c.article_id)
+        ).fetchone()
+
+        # potentially many authors; save them all
+        inserted_authors = conn.execute(
             metadata.tables["author"]
             .insert()
-            .values(author_rows[0])
-            .returning(metadata.tables["author"].c.author_name)
-        ).__dict__
+            .values(author_rows)
+            .returning(metadata.tables["author"].c.author_id)
+        )
 
-        # print(author_ids)
+        writes_to_insert = [
+            {"article_id": inserted_article_id, "author_id": id}
+            for id, in inserted_authors.fetchall()
+        ]
 
-        article_ids = conn.execute(
-            metadata.tables["article"].insert().return_defaults(), article_rows
-        )  # returned_defaults
-        print(article_ids)
+        conn.execute(metadata.tables["writes"].insert().values(writes_to_insert))
+        conn.close()
 
 
 def iter_norm_reference(dataset_iterable):

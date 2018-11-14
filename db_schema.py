@@ -5,8 +5,6 @@ from sqlalchemy.ext.declarative import declarative_base
 def build_schema_from_metadata(metadata, engine):
     """wrapper for database definitions. consider it config."""
 
-    Base = declarative_base()
-
     Table(
         "article",
         metadata,

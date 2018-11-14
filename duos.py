@@ -44,31 +44,22 @@ def duosload(ctx):
     ctx.obj = {"metadata": metadata, "engine": engine}
 
 
-@duosload.command()
-@click.option(
-    "--from-scratch", is_flag=True, help="drop and recreate the entire database"
-)
+@duosload.command(help="create duos database schema in target db.")
 @click.pass_context
-def create(ctx, from_scratch):
-    if from_scratch:
-        echo(
-            f"⬇  dropping every table... all {len(ctx.obj['metadata'].tables)} of them"
-        )
-        ctx.obj["metadata"].drop_all(ctx.obj["engine"])
-        echo("🙌  done!")
+def create(ctx):
 
     if len(ctx.obj["metadata"].tables):
         echo(f"🚫  {len(ctx.obj['metadata'].tables)} tables already exist.")
-        echo("consider destroying first or using '--from-scratch'")
+        echo("ℹ️  to drop and recreate call `destroy` first.")
         return
 
     echo("✨  creating tables...")
     build_schema_from_metadata(ctx.obj["metadata"], ctx.obj["engine"])
-    echo("🙌  done!")
+    echo("🙌  created!")
     return
 
 
-@duosload.command()
+@duosload.command(help="drop every table in duos database.")
 @click.pass_context
 def destroy(ctx):
     echo(f"⬇  dropping every table... all {len(ctx.obj['metadata'].tables)} of them")
@@ -76,7 +67,7 @@ def destroy(ctx):
     echo("🙌  destroyed!")
 
 
-@duosload.command(help="insert local csv into the database")
+@duosload.command(help="insert local csv into the database.")
 @click.pass_context
 def upload(ctx):
     # extract absolute path of wherever we are execxuting
