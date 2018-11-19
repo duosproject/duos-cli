@@ -2,6 +2,20 @@ import os
 import pandas as pd
 import re
 from click import echo
+from functools import wraps
+
+
+def echo_errors(fn, *args):
+    """decorator to make errors presentable for users"""
+
+    @wraps(fn)
+    def wrapper(*args):
+        try:
+            fn(*args)
+        except Exception as e:
+            echo(str(e))
+
+    return wrapper
 
 
 def iter_parse_csv(name, path, column_name_converter_dict):
@@ -22,7 +36,9 @@ def iter_parse_csv(name, path, column_name_converter_dict):
     )
 
     if missing_column is not None:
-        raise ValueError(f"Missing or misnamed column: {missing_column} in {name}.csv.")
+        raise ValueError(
+            f"column {missing_column} in {name}.csv is missing or misnamed."
+        )
 
     if len(column_name_converter_dict) != len(df_cols):
         extraneous_columns = [
@@ -36,12 +52,13 @@ def iter_parse_csv(name, path, column_name_converter_dict):
     for idx, named_tuple_record in enumerate(df.itertuples(index=False)):
         record = dict(named_tuple_record._asdict())
         if any([len(val) == 0 for val in record.values()]):
-            raise ValueError(f"Malformed record at row {idx} of {name}.csv.")
+            raise ValueError(f"malformed record at row {idx} of {name}.csv.")
 
         yield record
 
 
 def iter_norm_article(article_iterable):
+    """unflatten records in article.csv for inserting into ods"""
     for article in article_iterable:
         authors = re.split(r"\s?,\s?|\sand\s", article["author_list"])
         yield [
@@ -50,7 +67,9 @@ def iter_norm_article(article_iterable):
         ]
 
 
+@echo_errors
 def insert_article_dependent_tables(inserts_iterable, engine, metadata):
+    """inserts into: article, writes, & authors tables in duosdb"""
     conn = engine.connect()
     record_count = 0
     for article_row, author_rows in iter_norm_article(inserts_iterable):
@@ -60,11 +79,10 @@ def insert_article_dependent_tables(inserts_iterable, engine, metadata):
             metadata.tables["article"]
             .insert()
             .values(article_row)
-            # .return_defaults()
             .returning(metadata.tables["article"].c.article_id)
         ).fetchone()
 
-        # potentially many authors; save them all
+        # potentially many authors; save all their IDs
         inserted_authors = conn.execute(
             metadata.tables["author"]
             .insert()
@@ -81,7 +99,13 @@ def insert_article_dependent_tables(inserts_iterable, engine, metadata):
         echo("   ..." + "." * record_count)
     echo(f"ℹ️  {record_count} records processed.")
     conn.close()
+    return
 
 
 def iter_norm_reference(dataset_iterable):
+    pass
+
+
+@echo_errors
+def insert_reference_dependent_tables(inserts_iterable, engine, metadata):
     pass

@@ -23,7 +23,7 @@ from CONSTANTS import INPUT_VARIANT_COLUMN_MAP, INPUT_VARIANT_TRANSACTION_MAP
 
 @click.group()
 @click.pass_context
-def duosload(ctx):
+def duos(ctx):
     """utilitiy for loading the data for the DUOS research study."""
 
     load_dotenv()
@@ -44,7 +44,7 @@ def duosload(ctx):
     ctx.obj = {"metadata": metadata, "engine": engine}
 
 
-@duosload.command(help="create duos database schema in target db.")
+@duos.command(help="create duos database schema in target db.")
 @click.pass_context
 def create(ctx):
 
@@ -59,7 +59,7 @@ def create(ctx):
     return
 
 
-@duosload.command(help="drop every table in duos database.")
+@duos.command(help="drop every table in duos database.")
 @click.pass_context
 def destroy(ctx):
     echo(f"⬇  dropping every table... all {len(ctx.obj['metadata'].tables)} of them")
@@ -67,7 +67,7 @@ def destroy(ctx):
     echo("🙌  destroyed!")
 
 
-@duosload.command(help="commit records from local csv to the database.")
+@duos.command(help="commit records from local csv to the database.")
 @click.pass_context
 def upload(ctx):
     # extract absolute path of wherever we are execxuting
@@ -80,20 +80,21 @@ def upload(ctx):
     echo(f"🔍  CSVs discovered: {csv_names}...")
     echo("💬  Working...")
     for name in csv_names:
-        if name in INPUT_VARIANT_COLUMN_MAP:
+        try:
             INPUT_VARIANT_TRANSACTION_MAP[name](
                 iter_parse_csv(name, path, INPUT_VARIANT_COLUMN_MAP[name]),
                 ctx.obj["engine"],
                 ctx.obj["metadata"],
             )
-        else:
+        except KeyError:
             echo(
                 f"❗  {name}.csv is not an accepted filename. see CONSTANTS.py for valid names.\n   doing nothing with {name}.csv..."
             )
     echo("🙌  done!")
+    return
 
 
-@duosload.command(help="list basic info about duos db")
+@duos.command(help="list basic info about duos db")
 @click.pass_context
 def info(ctx):
     echo(f"💻  There are {len(ctx.obj['metadata'].tables)} tables in the DUOS database:")
@@ -103,4 +104,4 @@ def info(ctx):
 
 if __name__ == "__main__":
     # pylint: disable=E1123,E1120
-    duosload(obj={})  # initialize empty context
+    duos(obj={})  # initialize empty context
