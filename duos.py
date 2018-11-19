@@ -80,17 +80,18 @@ def upload(ctx):
     echo(f"🔍  CSVs discovered: {csv_names}...")
     echo("💬  Working...")
     for name in csv_names:
-        if name in INPUT_VARIANT_COLUMN_MAP:
+        try:
             INPUT_VARIANT_TRANSACTION_MAP[name](
                 iter_parse_csv(name, path, INPUT_VARIANT_COLUMN_MAP[name]),
                 ctx.obj["engine"],
                 ctx.obj["metadata"],
             )
-        else:
+        except KeyError:
             echo(
                 f"❗  {name}.csv is not an accepted filename. see CONSTANTS.py for valid names.\n   doing nothing with {name}.csv..."
             )
     echo("🙌  done!")
+    return
 
 
 @duosload.command(help="list basic info about duos db")
