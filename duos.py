@@ -72,7 +72,9 @@ def destroy(ctx):
 def upload(ctx):
     # extract absolute path of wherever we are execxuting
     path = os.path.dirname(os.path.abspath(__file__))
-    csv_names = {fname.split(".")[0] for fname in os.listdir(path) if ".csv" in fname}
+    csv_names = sorted(  # TODO: create precedence order before processing...
+        [fname.split(".")[0] for fname in os.listdir(path) if ".csv" in fname]
+    )
     if len(csv_names) == 0:
         echo(
             f"🙁  no csvs to parse found. is the csv you wanted to process in this folder?"

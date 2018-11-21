@@ -3,6 +3,7 @@ import pandas as pd
 import re
 from click import echo
 from functools import wraps
+from sqlalchemy import select
 
 
 def echo_errors(fn, *args):
@@ -58,22 +59,30 @@ def iter_parse_csv(name, path, column_name_converter_dict):
 
 
 def iter_norm_article(article_iterable):
-    """unflatten records in article.csv for inserting into ods"""
+    """unflatten records in articles.csv for inserting into ods"""
+
     for article in article_iterable:
         authors = re.split(r"\s?,\s?|\sand\s", article["author_list"])
-        yield [
-            {"article_title": article["title"], "duos_label": article["duos_label"]},
+        yield (
+            {
+                "article_title": article["title"],
+                "duos_article_label": article["duos_article_label"],
+            },
             [{"author_name": author} for author in authors],
-        ]
+        )
 
 
 @echo_errors
-def insert_article_dependent_tables(inserts_iterable, engine, metadata):
+def insert_article_dependent_tables(article_inserts_iterable, engine, metadata):
     """inserts into: article, writes, & authors tables in duosdb"""
+
     conn = engine.connect()
     record_count = 0
-    for article_row, author_rows in iter_norm_article(inserts_iterable):
+
+    for article_row, author_rows in iter_norm_article(article_inserts_iterable):
+
         record_count += 1
+
         # only one article to insert; grab ID
         inserted_article_id, = conn.execute(
             metadata.tables["article"]
@@ -83,7 +92,7 @@ def insert_article_dependent_tables(inserts_iterable, engine, metadata):
         ).fetchone()
 
         # potentially many authors; save all their IDs
-        inserted_authors = conn.execute(
+        inserted_author_ids = conn.execute(
             metadata.tables["author"]
             .insert()
             .values(author_rows)
@@ -92,7 +101,7 @@ def insert_article_dependent_tables(inserts_iterable, engine, metadata):
 
         writes_to_insert = [
             {"article_id": inserted_article_id, "author_id": id}
-            for id, in inserted_authors.fetchall()
+            for id, in inserted_author_ids.fetchall()
         ]
 
         conn.execute(metadata.tables["writes"].insert().values(writes_to_insert))
@@ -102,10 +111,68 @@ def insert_article_dependent_tables(inserts_iterable, engine, metadata):
     return
 
 
-def iter_norm_reference(dataset_iterable):
-    pass
+# @echo_errors
+def insert_reference_dependent_tables(reference_inserts_iterable, engine, metadata):
 
+    conn = engine.connect()
+    record_count = 0
 
-@echo_errors
-def insert_reference_dependent_tables(inserts_iterable, engine, metadata):
-    pass
+    for reference in reference_inserts_iterable:
+        record_count += 1
+
+        # insert dataset if it's not already there
+        # grab ID or None
+        inserted_dataset_id, = (
+            (None,)
+            if conn.execute(
+                select([metadata.tables["dataset"].c.duos_dataset_label])
+                .select_from(metadata.tables["dataset"])
+                .where(
+                    metadata.tables["dataset"].c.duos_dataset_label
+                    == reference["duos_dataset_label"]
+                )
+            ).fetchone()
+            else conn.execute(
+                metadata.tables["dataset"]
+                .insert()
+                .values(
+                    {
+                        "dataset_name": reference["name"],
+                        "duos_dataset_label": reference["duos_dataset_label"],
+                    }
+                )
+                .returning(
+                    metadata.tables["dataset"].c.dataset_id,
+                    # metadata.tables["dataset"].c.duos_dataset_label
+                )
+            ).fetchone()
+        )
+
+        if inserted_dataset_id is None:
+            continue
+
+        # select the article ID related to inserted dataset
+        inserted_dataset_related_article_id, = conn.execute(
+            select([metadata.tables["article"].c.article_id])
+            .select_from(metadata.tables["article"])
+            .where(
+                metadata.tables["article"].c.duos_article_label
+                == reference["duos_article_label"]
+            )
+        ).fetchone()
+
+        # finally, insert reference
+        conn.execute(
+            metadata.tables["reference"]
+            .insert()
+            .values(
+                {
+                    "dataset_id": inserted_dataset_id,
+                    "article_id": inserted_dataset_related_article_id,
+                    "ref_hash": str(inserted_dataset_id ** 2),
+                }
+            )
+        )
+
+    echo(f"ℹ️  {record_count} records processed.")
+    conn.close()

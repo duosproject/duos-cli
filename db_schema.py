@@ -11,7 +11,7 @@ def build_schema_from_metadata(metadata, engine):
         # integer pk interpreted as SERIAL by default
         Column("article_id", Integer, primary_key=True),
         Column("article_title", String, nullable=False),
-        Column("duos_label", String, nullable=False),
+        Column("duos_article_label", String, nullable=False),
     )
 
     Table(
@@ -28,6 +28,7 @@ def build_schema_from_metadata(metadata, engine):
         Column("dataset_id", Integer, primary_key=True),
         Column("dataset_name", String, nullable=False),
         Column("abbreviation", String),
+        Column("duos_dataset_label", String, nullable=False),
     )
 
     Table(
