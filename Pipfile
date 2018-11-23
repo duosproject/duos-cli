@@ -11,6 +11,7 @@ click = "*"
 python-dotenv = "*"
 "psycopg2-binary" = "*"
 pandas = "==0.20.3"
+hashids = "*"
 
 [dev-packages]
 

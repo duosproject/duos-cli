@@ -4,6 +4,7 @@ import re
 from click import echo
 from functools import wraps
 from sqlalchemy import select
+from hashids import Hashids
 
 
 def echo_errors(fn, *args):
@@ -99,8 +100,17 @@ def insert_article_dependent_tables(article_inserts_iterable, engine, metadata):
             .returning(metadata.tables["author"].c.author_id)
         )
 
+        h = Hashids(salt="duos")
+
         writes_to_insert = [
-            {"article_id": inserted_article_id, "author_id": id}
+            {
+                "article_id": inserted_article_id,
+                "author_id": id,
+                "writes_hash": h.encode(
+                    inserted_article_id, id, (inserted_article_id * id)
+                ),
+                # three numbers encoded for decent length hash
+            }
             for id, in inserted_author_ids.fetchall()
         ]
 
@@ -169,7 +179,7 @@ def insert_reference_dependent_tables(reference_inserts_iterable, engine, metada
                 {
                     "dataset_id": inserted_dataset_id,
                     "article_id": inserted_dataset_related_article_id,
-                    "ref_hash": str(inserted_dataset_id ** 2),
+                    # "writes_hash": str(inserted_dataset_id ** 2),
                 }
             )
         )
