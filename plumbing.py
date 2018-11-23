@@ -100,7 +100,11 @@ def insert_article_dependent_tables(article_inserts_iterable, engine, metadata):
         )
 
         writes_to_insert = [
-            {"article_id": inserted_article_id, "author_id": id}
+            {
+                "article_id": inserted_article_id,
+                "author_id": id,
+                "writes_hash": (inserted_article_id * id) ** 3,
+            }
             for id, in inserted_author_ids.fetchall()
         ]
 
@@ -169,7 +173,7 @@ def insert_reference_dependent_tables(reference_inserts_iterable, engine, metada
                 {
                     "dataset_id": inserted_dataset_id,
                     "article_id": inserted_dataset_related_article_id,
-                    "ref_hash": str(inserted_dataset_id ** 2),
+                    # "writes_hash": str(inserted_dataset_id ** 2),
                 }
             )
         )
