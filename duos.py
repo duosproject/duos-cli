@@ -62,9 +62,15 @@ def create(ctx):
 @duos.command(help="drop every table in duos database.")
 @click.pass_context
 def destroy(ctx):
-    echo(f"⬇  dropping every table... all {len(ctx.obj['metadata'].tables)} of them")
-    ctx.obj["metadata"].drop_all(ctx.obj["engine"])
-    echo("🙌  destroyed!")
+
+    confirmation_message = "are you sure you wanna completely destroy the database?\nThis can not be undone."
+
+    if click.confirm(confirmation_message, abort=True):
+        echo(
+            f"⬇  dropping every table... all {len(ctx.obj['metadata'].tables)} of them"
+        )
+        ctx.obj["metadata"].drop_all(ctx.obj["engine"])
+        echo("😈 destroyed!")
 
 
 @duos.command(help="commit records from local csv to the database.")
