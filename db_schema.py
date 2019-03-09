@@ -68,5 +68,12 @@ def build_schema_from_metadata(metadata, engine):
         Column("insert_date", DateTime),
     )
 
-    return metadata.create_all()
+    Table(
+        "session",
+        metadata,
+        Column("int_session_id", Integer, primary_key=True),
+        Column("session_id", String, nullable=False),
+        Column("message", String, nullable=False),
+    )
 
+    return metadata.create_all()
