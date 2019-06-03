@@ -37,6 +37,7 @@ def build_schema_from_metadata(metadata, engine):
         Column("writes_id", Integer, primary_key=True),
         Column("article_id", Integer, ForeignKey("article.article_id"), nullable=False),
         Column("author_id", Integer, ForeignKey("author.author_id"), nullable=False),
+        Column("writes_hash", String, nullable=False),
     )
 
     Table(
@@ -45,7 +46,6 @@ def build_schema_from_metadata(metadata, engine):
         Column("ref_id", Integer, primary_key=True),
         Column("dataset_id", Integer, ForeignKey("dataset.dataset_id"), nullable=False),
         Column("article_id", Integer, ForeignKey("article.article_id"), nullable=False),
-        Column("ref_hash", String, nullable=False),
     )
 
     Table(
@@ -60,5 +60,20 @@ def build_schema_from_metadata(metadata, engine):
         Column("action_date", DateTime),
     )
 
-    return metadata.create_all()
+    Table(
+        "email_recipient",
+        metadata,
+        Column("email_recipient_id", Integer, primary_key=True),
+        Column("writes_id", Integer, ForeignKey("writes.writes_id"), nullable=False),
+        Column("insert_date", DateTime),
+    )
 
+    Table(
+        "session",
+        metadata,
+        Column("int_session_id", Integer, primary_key=True),
+        Column("session_id", String, nullable=False),
+        Column("message", String, nullable=False),
+    )
+
+    return metadata.create_all()

@@ -4,6 +4,7 @@ import re
 from click import echo
 from functools import wraps
 from sqlalchemy import select
+from hashids import Hashids
 
 
 def echo_errors(fn, *args):
@@ -19,6 +20,7 @@ def echo_errors(fn, *args):
     return wrapper
 
 
+# don't echo errors this one gets called inside an echoer
 def iter_parse_csv(name, path, column_name_converter_dict):
     """ingest and validate csv files
     :yield:    dict(str, str)"""
@@ -99,8 +101,17 @@ def insert_article_dependent_tables(article_inserts_iterable, engine, metadata):
             .returning(metadata.tables["author"].c.author_id)
         )
 
+        h = Hashids(salt="duos")
+
         writes_to_insert = [
-            {"article_id": inserted_article_id, "author_id": id}
+            {
+                "article_id": inserted_article_id,
+                "author_id": id,
+                "writes_hash": h.encode(
+                    inserted_article_id, id, (inserted_article_id * id)
+                ),
+                # three numbers encoded for decent length hash
+            }
             for id, in inserted_author_ids.fetchall()
         ]
 
@@ -108,10 +119,8 @@ def insert_article_dependent_tables(article_inserts_iterable, engine, metadata):
         echo("   ..." + "." * record_count)
     echo(f"ℹ️  {record_count} records processed.")
     conn.close()
-    return
 
 
-# @echo_errors
 def insert_reference_dependent_tables(reference_inserts_iterable, engine, metadata):
 
     conn = engine.connect()
@@ -141,10 +150,7 @@ def insert_reference_dependent_tables(reference_inserts_iterable, engine, metada
                         "duos_dataset_label": reference["duos_dataset_label"],
                     }
                 )
-                .returning(
-                    metadata.tables["dataset"].c.dataset_id,
-                    # metadata.tables["dataset"].c.duos_dataset_label
-                )
+                .returning(metadata.tables["dataset"].c.dataset_id)
             ).fetchone()
         )
 
@@ -169,9 +175,28 @@ def insert_reference_dependent_tables(reference_inserts_iterable, engine, metada
                 {
                     "dataset_id": inserted_dataset_id,
                     "article_id": inserted_dataset_related_article_id,
-                    "ref_hash": str(inserted_dataset_id ** 2),
                 }
             )
+        )
+
+    echo(f"ℹ️  {record_count} records processed.")
+    conn.close()
+
+
+def update_author_email_addresses(author_email_iterable, engine, metadata):
+    """updates email addresses for authors already in the database"""
+
+    conn = engine.connect()
+    record_count = 0
+
+    for author_email in author_email_iterable:
+        record_count += 1
+
+        conn.execute(
+            metadata.tables["author"]
+            .update()
+            .where(metadata.tables["author"].c.author_id == author_email["author_id"])
+            .values(email_address=author_email["email_address"])
         )
 
     echo(f"ℹ️  {record_count} records processed.")
